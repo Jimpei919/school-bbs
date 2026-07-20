@@ -10,13 +10,15 @@
   <div class="max-w-3xl mx-auto px-4">
     <h1 class="text-3xl font-bold mb-6 text-center">学校掲示板</h1>
 
-    <!-- Googleフォーム埋め込み -->
-    <div class="bg-white rounded-2xl shadow p-6 mb-8">
-      <h2 class="font-semibold mb-3">投稿する</h2>
-      <iframe src="https://forms.gle/Fo6TUnmXWRaewC4LA" 
-              width="100%" height="520" frameborder="0" marginheight="0" marginwidth="0">
-        読み込まれています…
-      </iframe>
+    <!-- 投稿ボタン -->
+    <div class="bg-white rounded-2xl shadow p-6 mb-8 text-center">
+      <h2 class="font-semibold mb-4 text-lg">投稿する</h2>
+      <a href="https://forms.gle/cmAFHeYd5KQfWQoi9" 
+         target="_blank"
+         class="inline-block bg-blue-500 hover:bg-blue-600 text-white font-semibold px-8 py-3 rounded-xl transition">
+        投稿フォームを開く
+      </a>
+      <p class="text-sm text-gray-500 mt-3">別タブで開きます</p>
     </div>
 
     <div class="flex justify-between items-center mb-3 px-1">
@@ -32,61 +34,61 @@
 
     async function loadPosts() {
       try {
-        console.log("データを取得中...");
         const res = await fetch(SHEET_URL);
         const text = await res.text();
-        
-        console.log("取得したCSV:", text); // ← デバッグ用
-
         const lines = text.trim().split(/\r?\n/);
-        console.log("行数:", lines.length);
 
         const posts = [];
         for (let i = 1; i < lines.length; i++) {
-          // シンプルにカンマで分割（改善版）
           const cells = lines[i].split(',');
-          
           if (cells.length >= 4) {
             posts.push({
               timestamp: cells[0].replace(/"/g, '').trim(),
               name: cells[1].replace(/"/g, '').trim() || '名無しさん',
               title: cells[2].replace(/"/g, '').trim(),
-              message: cells[3].replace(/"/g, '').trim()
+              message: cells[3].replace(/"/g, '').trim(),
+              reply: cells[4] ? cells[4].replace(/"/g, '').trim() : ''  // E列を返信として扱う
             });
           }
         }
 
-        console.log("パース後の投稿数:", posts.length);
-
         const container = document.getElementById('posts');
         container.innerHTML = '';
-
-        if (posts.length === 0) {
-          container.innerHTML = '<p class="text-gray-500">投稿がまだありません</p>';
-          return;
-        }
 
         posts.reverse(); // 新しい順
 
         posts.forEach(post => {
           const div = document.createElement('div');
           div.className = 'bg-white p-5 rounded-2xl shadow';
-          div.innerHTML = `
+
+          let html = `
             <div>
               <span class="font-bold text-lg">${post.title}</span>
               <span class="ml-2 text-sm text-gray-500">${post.name}</span>
             </div>
             <div class="mt-2 text-gray-700 whitespace-pre-wrap">${post.message}</div>
-            <div class="text-xs text-gray-400 mt-2">${post.timestamp}</div>
           `;
+
+          // E列に返信があれば表示
+          if (post.reply) {
+            html += `
+              <div class="mt-4 pl-4 border-l-4 border-blue-300 bg-gray-50 p-3 rounded-xl">
+                <div class="text-sm font-semibold text-blue-600 mb-1">返信</div>
+                <div class="text-gray-700">${post.reply}</div>
+              </div>
+            `;
+          }
+
+          html += `<div class="text-xs text-gray-400 mt-3">${post.timestamp}</div>`;
+          div.innerHTML = html;
           container.appendChild(div);
         });
 
         document.getElementById('count').textContent = `${posts.length}件`;
       } catch (error) {
-        console.error("エラー発生:", error);
+        console.error(error);
         document.getElementById('posts').innerHTML = 
-          '<p class="text-red-500">データの読み込みに失敗しました。コンソールを確認してください。</p>';
+          '<p class="text-red-500">データの読み込みに失敗しました。</p>';
       }
     }
 
