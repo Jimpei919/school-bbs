@@ -13,7 +13,7 @@
     <!-- Googleフォーム埋め込み -->
     <div class="bg-white rounded-2xl shadow p-6 mb-8">
       <h2 class="font-semibold mb-4 text-lg">投稿する</h2>
-      <iframe src="https://forms.gle/2tZn2iBi7Rxt7vXeA" 
+      <iframe src="https://forms.gle/2YPpSCiuZBitrQAo7" 
               width="100%" height="520" frameborder="0" marginheight="0" marginwidth="0">
         読み込まれています…
       </iframe>
@@ -107,11 +107,13 @@
       try {
         const res = await fetch(APPS_SCRIPT_URL, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'text/plain;charset=utf-8'   // ← これが重要
-          },
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({ timestamp, action })
         });
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
 
         const result = await res.json();
 
@@ -120,14 +122,15 @@
           button.classList.toggle('liked', isLiking);
           button.style.color = isLiking ? '#ef4444' : '';
         } else {
-          alert('更新に失敗しました: ' + (result.error || '不明なエラー'));
+          alert('エラー: ' + (result.error || '不明なエラー'));
         }
       } catch (err) {
         console.error(err);
-        alert('いいねの更新に失敗しました（ネットワークエラー）');
+        alert('いいねの更新に失敗しました。\n\nApps Scriptを「全員アクセス」で再デプロイしてください。');
       }
     }
 
+    // 初期読み込み
     loadPosts();
     setInterval(loadPosts, 15000);
   </script>
