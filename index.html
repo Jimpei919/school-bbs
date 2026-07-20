@@ -10,15 +10,13 @@
   <div class="max-w-3xl mx-auto px-4">
     <h1 class="text-3xl font-bold mb-6 text-center">学校掲示板</h1>
 
-    <!-- 投稿ボタン -->
-    <div class="bg-white rounded-2xl shadow p-6 mb-8 text-center">
-      <h2 class="font-semibold mb-4 text-lg">投稿する</h2>
-      <a href="https://forms.gle/cmAFHeYd5KQfWQoi9" 
-         target="_blank"
-         class="inline-block bg-blue-500 hover:bg-blue-600 text-white font-semibold px-8 py-3 rounded-xl transition">
-        投稿フォームを開く
-      </a>
-      <p class="text-sm text-gray-500 mt-3">別タブで開きます</p>
+    <!-- Googleフォーム埋め込み -->
+    <div class="bg-white rounded-2xl shadow p-6 mb-8">
+      <h2 class="font-semibold mb-3">投稿する</h2>
+      <iframe src="https://forms.gle/f1qz4yRc277PFBVZ7" 
+              width="100%" height="520" frameborder="0" marginheight="0" marginwidth="0">
+        読み込まれています…
+      </iframe>
     </div>
 
     <div class="flex justify-between items-center mb-3 px-1">
@@ -32,6 +30,21 @@
   <script>
     const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQDUiQApB3sxxUELH5dJVv6rRmY3e4N-2J9ZVNhCCTW11VYh2CeXKvaBLkgoBrdeAOnnyK2vYWFTvuO/pub?output=csv';
 
+    // いいね管理（localStorage）
+    function getLiked() {
+      return JSON.parse(localStorage.getItem('liked_posts') || '[]');
+    }
+    function hasLiked(id) {
+      return getLiked().includes(id);
+    }
+    function likePost(id) {
+      let liked = getLiked();
+      if (!liked.includes(id)) {
+        liked.push(id);
+        localStorage.setItem('liked_posts', JSON.stringify(liked));
+      }
+    }
+
     async function loadPosts() {
       try {
         const res = await fetch(SHEET_URL);
@@ -43,11 +56,11 @@
           const cells = lines[i].split(',');
           if (cells.length >= 4) {
             posts.push({
-              timestamp: cells[0].replace(/"/g, '').trim(),
+              id: cells[0].replace(/"/g, '').trim(),
               name: cells[1].replace(/"/g, '').trim() || '名無しさん',
               title: cells[2].replace(/"/g, '').trim(),
               message: cells[3].replace(/"/g, '').trim(),
-              reply: cells[4] ? cells[4].replace(/"/g, '').trim() : ''  // E列を返信として扱う
+              reply: cells[4] ? cells[4].replace(/"/g, '').trim() : ''
             });
           }
         }
@@ -55,9 +68,10 @@
         const container = document.getElementById('posts');
         container.innerHTML = '';
 
-        posts.reverse(); // 新しい順
+        posts.reverse();
 
         posts.forEach(post => {
+          const liked = hasLiked(post.id);
           const div = document.createElement('div');
           div.className = 'bg-white p-5 rounded-2xl shadow';
 
@@ -69,7 +83,7 @@
             <div class="mt-2 text-gray-700 whitespace-pre-wrap">${post.message}</div>
           `;
 
-          // E列に返信があれば表示
+          // 返信表示
           if (post.reply) {
             html += `
               <div class="mt-4 pl-4 border-l-4 border-blue-300 bg-gray-50 p-3 rounded-xl">
@@ -79,7 +93,19 @@
             `;
           }
 
-          html += `<div class="text-xs text-gray-400 mt-3">${post.timestamp}</div>`;
+          // いいねボタン
+          html += `
+            <div class="mt-4 flex items-center gap-2">
+              <button onclick="handleLike('${post.id}', this)" 
+                      class="flex items-center gap-1 px-3 py-1 rounded-full text-sm transition 
+                      ${liked ? 'bg-red-100 text-red-500 cursor-not-allowed' : 'bg-gray-100 hover:bg-red-100'}"
+                      ${liked ? 'disabled' : ''}>
+                ❤️ <span class="like-count">${liked ? 1 : 0}</span>
+              </button>
+            </div>
+          `;
+
+          html += `<div class="text-xs text-gray-400 mt-2">${post.id}</div>`;
           div.innerHTML = html;
           container.appendChild(div);
         });
@@ -90,6 +116,20 @@
         document.getElementById('posts').innerHTML = 
           '<p class="text-red-500">データの読み込みに失敗しました。</p>';
       }
+    }
+
+    function handleLike(postId, button) {
+      if (hasLiked(postId)) return;
+
+      likePost(postId);
+
+      // 表示を更新
+      const countSpan = button.querySelector('.like-count');
+      countSpan.textContent = '1';
+
+      button.classList.remove('bg-gray-100', 'hover:bg-red-100');
+      button.classList.add('bg-red-100', 'text-red-500', 'cursor-not-allowed');
+      button.disabled = true;
     }
 
     loadPosts();
