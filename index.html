@@ -8,12 +8,12 @@
 </head>
 <body class="bg-gray-100 py-8">
   <div class="max-w-3xl mx-auto px-4">
-    <h1 class="text-3xl font-bold mb-6 text-center">学校掲示板</h1>
+    <h1 class="text-3xl font-bold mb-6 text-center">🏫 学校掲示板</h1>
 
     <!-- Googleフォーム埋め込み -->
     <div class="bg-white rounded-2xl shadow p-6 mb-8">
-      <h2 class="font-semibold mb-4">投稿する</h2>
-      <iframe src="https://forms.gle/5iyBVa7JcCWG3hMJ8" 
+      <h2 class="font-semibold mb-4 text-lg">投稿する</h2>
+      <iframe src="https://forms.gle/2tZn2iBi7Rxt7vXeA" 
               width="100%" height="520" frameborder="0" marginheight="0" marginwidth="0">
         読み込まれています…
       </iframe>
@@ -79,7 +79,6 @@
             `;
           }
 
-          // いいねボタン（取消可能）
           html += `
             <div class="mt-4 flex items-center gap-3">
               <button onclick="toggleLike('${post.id}', this)" 
@@ -97,41 +96,38 @@
         document.getElementById('count').textContent = `${posts.length}件`;
       } catch (e) {
         console.error(e);
-        document.getElementById('posts').innerHTML = 
-          '<p class="text-red-500">データの読み込みに失敗しました</p>';
       }
     }
 
     async function toggleLike(timestamp, button) {
       const countSpan = button.querySelector('.like-count');
-      let current = parseInt(countSpan.textContent);
       const isLiking = !button.classList.contains('liked');
-
       const action = isLiking ? 'like' : 'unlike';
 
       try {
         const res = await fetch(APPS_SCRIPT_URL, {
           method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain;charset=utf-8'   // ← これが重要
+          },
           body: JSON.stringify({ timestamp, action })
         });
+
         const result = await res.json();
 
         if (result.success) {
           countSpan.textContent = result.likes;
           button.classList.toggle('liked', isLiking);
-          if (isLiking) {
-            button.style.color = '#ef4444';
-          } else {
-            button.style.color = '';
-          }
+          button.style.color = isLiking ? '#ef4444' : '';
+        } else {
+          alert('更新に失敗しました: ' + (result.error || '不明なエラー'));
         }
       } catch (err) {
         console.error(err);
-        alert('いいねの更新に失敗しました。');
+        alert('いいねの更新に失敗しました（ネットワークエラー）');
       }
     }
 
-    // 初回読み込み + 自動更新
     loadPosts();
     setInterval(loadPosts, 15000);
   </script>
