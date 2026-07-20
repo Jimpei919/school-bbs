@@ -13,7 +13,7 @@
     <!-- Googleフォーム埋め込み -->
     <div class="bg-white rounded-2xl shadow p-6 mb-8">
       <h2 class="font-semibold mb-3">投稿する</h2>
-      <iframe src="https://forms.gle/e6znTeF3ofbMZCAR8" 
+      <iframe src="https://forms.gle/Fo6TUnmXWRaewC4LA" 
               width="100%" height="520" frameborder="0" marginheight="0" marginwidth="0">
         読み込まれています…
       </iframe>
@@ -32,64 +32,61 @@
 
     async function loadPosts() {
       try {
+        console.log("データを取得中...");
         const res = await fetch(SHEET_URL);
         const text = await res.text();
+        
+        console.log("取得したCSV:", text); // ← デバッグ用
+
         const lines = text.trim().split(/\r?\n/);
+        console.log("行数:", lines.length);
 
         const posts = [];
         for (let i = 1; i < lines.length; i++) {
-          const row = lines[i].match(/(".*?"|[^,]+)(?=\s*,|\s*$)/g) || [];
-          if (row.length >= 4) {
+          // シンプルにカンマで分割（改善版）
+          const cells = lines[i].split(',');
+          
+          if (cells.length >= 4) {
             posts.push({
-              timestamp: row[0].replace(/"/g, ''),
-              name: row[1].replace(/"/g, '') || '名無しさん',
-              title: row[2].replace(/"/g, ''),
-              message: row[3].replace(/"/g, ''),
-              reply: row[4] ? row[4].replace(/"/g, '') : ''   // E列を返信内容として扱う
+              timestamp: cells[0].replace(/"/g, '').trim(),
+              name: cells[1].replace(/"/g, '').trim() || '名無しさん',
+              title: cells[2].replace(/"/g, '').trim(),
+              message: cells[3].replace(/"/g, '').trim()
             });
           }
         }
 
+        console.log("パース後の投稿数:", posts.length);
+
         const container = document.getElementById('posts');
         container.innerHTML = '';
 
-        let currentMainPost = null;
+        if (posts.length === 0) {
+          container.innerHTML = '<p class="text-gray-500">投稿がまだありません</p>';
+          return;
+        }
+
+        posts.reverse(); // 新しい順
 
         posts.forEach(post => {
-          if (post.reply) {
-            // 返信の場合
-            if (currentMainPost) {
-              const replyDiv = document.createElement('div');
-              replyDiv.className = 'ml-6 mt-3 p-3 bg-gray-50 rounded-xl border-l-4 border-blue-300';
-              replyDiv.innerHTML = `
-                <div class="text-sm">
-                  <span class="font-semibold">${post.name}</span>
-                  <span class="ml-2 text-gray-600">${post.reply}</span>
-                </div>
-              `;
-              currentMainPost.appendChild(replyDiv);
-            }
-          } else {
-            // メイン投稿の場合
-            const div = document.createElement('div');
-            div.className = 'bg-white p-5 rounded-2xl shadow mb-4';
-            div.innerHTML = `
-              <div>
-                <span class="font-bold text-lg">${post.title}</span>
-                <span class="ml-2 text-sm text-gray-500">${post.name}</span>
-              </div>
-              <div class="mt-2 text-gray-700 whitespace-pre-wrap">${post.message}</div>
-            `;
-            container.appendChild(div);
-            currentMainPost = div;
-          }
+          const div = document.createElement('div');
+          div.className = 'bg-white p-5 rounded-2xl shadow';
+          div.innerHTML = `
+            <div>
+              <span class="font-bold text-lg">${post.title}</span>
+              <span class="ml-2 text-sm text-gray-500">${post.name}</span>
+            </div>
+            <div class="mt-2 text-gray-700 whitespace-pre-wrap">${post.message}</div>
+            <div class="text-xs text-gray-400 mt-2">${post.timestamp}</div>
+          `;
+          container.appendChild(div);
         });
 
         document.getElementById('count').textContent = `${posts.length}件`;
-      } catch (e) {
-        console.error(e);
+      } catch (error) {
+        console.error("エラー発生:", error);
         document.getElementById('posts').innerHTML = 
-          '<p class="text-red-500">データを読み込めませんでした。</p>';
+          '<p class="text-red-500">データの読み込みに失敗しました。コンソールを確認してください。</p>';
       }
     }
 
