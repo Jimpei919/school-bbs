@@ -8,12 +8,12 @@
 </head>
 <body class="bg-gray-100 py-8">
   <div class="max-w-3xl mx-auto px-4">
-    <h1 class="text-3xl font-bold mb-6 text-center">学校掲示板</h1>
+    <h1 class="text-3xl font-bold mb-6 text-center">🏫 学校掲示板</h1>
 
     <!-- Googleフォーム埋め込み -->
     <div class="bg-white rounded-2xl shadow p-6 mb-8">
-      <h2 class="font-semibold mb-3">投稿する</h2>
-      <iframe src="https://forms.gle/f1qz4yRc277PFBVZ7" 
+      <h2 class="font-semibold mb-4 text-lg">投稿する</h2>
+      <iframe src="https://docs.google.com/forms/d/e/1FAIpQLSf1vF8z9vXvN8vKzL5fJqWvX8pL9kM7nXvQbR2tY3uZ4vW5xE/viewform?embedded=true" 
               width="100%" height="520" frameborder="0" marginheight="0" marginwidth="0">
         読み込まれています…
       </iframe>
@@ -29,21 +29,7 @@
 
   <script>
     const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQDUiQApB3sxxUELH5dJVv6rRmY3e4N-2J9ZVNhCCTW11VYh2CeXKvaBLkgoBrdeAOnnyK2vYWFTvuO/pub?output=csv';
-
-    // いいね管理（localStorage）
-    function getLiked() {
-      return JSON.parse(localStorage.getItem('liked_posts') || '[]');
-    }
-    function hasLiked(id) {
-      return getLiked().includes(id);
-    }
-    function likePost(id) {
-      let liked = getLiked();
-      if (!liked.includes(id)) {
-        liked.push(id);
-        localStorage.setItem('liked_posts', JSON.stringify(liked));
-      }
-    }
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzAYEbM66dsF7RhnnL64CGP4RGbpiQsnkBnAqTTO_jgYb1Bq7htwFxP5OZsHgaEKZZTkw/exec';
 
     async function loadPosts() {
       try {
@@ -54,36 +40,36 @@
         const posts = [];
         for (let i = 1; i < lines.length; i++) {
           const cells = lines[i].split(',');
-          if (cells.length >= 4) {
+          if (cells.length >= 5) {
             posts.push({
               id: cells[0].replace(/"/g, '').trim(),
               name: cells[1].replace(/"/g, '').trim() || '名無しさん',
               title: cells[2].replace(/"/g, '').trim(),
               message: cells[3].replace(/"/g, '').trim(),
-              reply: cells[4] ? cells[4].replace(/"/g, '').trim() : ''
+              reply: cells[4] ? cells[4].replace(/"/g, '').trim() : '',
+              likes: parseInt(cells[5]?.replace(/"/g, '').trim() || '0')
             });
           }
         }
 
         const container = document.getElementById('posts');
         container.innerHTML = '';
-
         posts.reverse();
 
         posts.forEach(post => {
-          const liked = hasLiked(post.id);
           const div = document.createElement('div');
           div.className = 'bg-white p-5 rounded-2xl shadow';
 
           let html = `
-            <div>
-              <span class="font-bold text-lg">${post.title}</span>
-              <span class="ml-2 text-sm text-gray-500">${post.name}</span>
+            <div class="flex justify-between items-start">
+              <div>
+                <span class="font-bold text-lg">${post.title}</span>
+                <span class="ml-2 text-sm text-gray-500">${post.name}</span>
+              </div>
             </div>
             <div class="mt-2 text-gray-700 whitespace-pre-wrap">${post.message}</div>
           `;
 
-          // 返信表示
           if (post.reply) {
             html += `
               <div class="mt-4 pl-4 border-l-4 border-blue-300 bg-gray-50 p-3 rounded-xl">
@@ -93,43 +79,49 @@
             `;
           }
 
-          // いいねボタン
           html += `
-            <div class="mt-4 flex items-center gap-2">
-              <button onclick="handleLike('${post.id}', this)" 
-                      class="flex items-center gap-1 px-3 py-1 rounded-full text-sm transition 
-                      ${liked ? 'bg-red-100 text-red-500 cursor-not-allowed' : 'bg-gray-100 hover:bg-red-100'}"
-                      ${liked ? 'disabled' : ''}>
-                ❤️ <span class="like-count">${liked ? 1 : 0}</span>
+            <div class="mt-4 flex items-center gap-3">
+              <button onclick="toggleLike('${post.id}', this)" 
+                      class="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition hover:bg-red-50">
+                ❤️ <span class="like-count font-semibold">${post.likes}</span>
               </button>
+              <span class="text-xs text-gray-400">${post.id}</span>
             </div>
           `;
 
-          html += `<div class="text-xs text-gray-400 mt-2">${post.id}</div>`;
           div.innerHTML = html;
           container.appendChild(div);
         });
 
         document.getElementById('count').textContent = `${posts.length}件`;
-      } catch (error) {
-        console.error(error);
+      } catch (e) {
+        console.error(e);
         document.getElementById('posts').innerHTML = 
-          '<p class="text-red-500">データの読み込みに失敗しました。</p>';
+          '<p class="text-red-500">データの読み込みに失敗しました</p>';
       }
     }
 
-    function handleLike(postId, button) {
-      if (hasLiked(postId)) return;
-
-      likePost(postId);
-
-      // 表示を更新
+    async function toggleLike(timestamp, button) {
       const countSpan = button.querySelector('.like-count');
-      countSpan.textContent = '1';
+      const isLiking = !button.classList.contains('liked');
+      const action = isLiking ? 'like' : 'unlike';
 
-      button.classList.remove('bg-gray-100', 'hover:bg-red-100');
-      button.classList.add('bg-red-100', 'text-red-500', 'cursor-not-allowed');
-      button.disabled = true;
+      try {
+        const res = await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          body: JSON.stringify({ timestamp, action })
+        });
+        const result = await res.json();
+
+        if (result.success) {
+          countSpan.textContent = result.likes;
+          button.classList.toggle('liked', isLiking);
+          button.style.color = isLiking ? '#ef4444' : '';
+        }
+      } catch (err) {
+        console.error(err);
+        alert('いいねの更新に失敗しました');
+      }
     }
 
     loadPosts();
